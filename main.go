@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -26,26 +25,36 @@ func main() {
 }
 
 type hashResponse struct {
-	TinyUrl string `json:"tiny"`
+	TinyUrl string `json:"tiny,omitempty"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 type hashRequest struct {
 	Url string `json:"url"`
 }
 
 func hashHandler(w http.ResponseWriter, r *http.Request) {
-
 	var request hashRequest
 	json.NewDecoder(r.Body).Decode(&request)
 
 	var newID string
+	try := 0
 	for {
 		newID = generator.GenerateID()
-		inserted, err := storage.Put(newID, request.Url)
-		if err != nil && err != sqlite.ErrUnique {
-			log.Fatal(err)
-		}
-		if inserted {
+		err := storage.Put(newID, request.Url)		
+		if err == nil {
 			break
+		}
+
+		//maybe we had generated duplicate id
+		//so we try again
+		try++
+		if try>=20 {
+			//maybe almost ID has been taken
+			//or maybe the storage system has been down
+			json.NewEncoder(w).Encode(hashResponse{
+				ErrorMessage: "Sorry , we cannot serve your request right now",
+			})
+			return 
 		}
 	}
 

@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -10,8 +9,6 @@ import (
 
 const dbPath = "./finch.db"
 const table = "urls"
-
-var ErrUnique = errors.New("UNIQUE constraint failed")
 
 type storage struct {
 }
@@ -21,20 +18,16 @@ func New() *storage {
 	return &storage{}
 }
 
-func (st *storage) Put(id string, originalUrl string) (bool, error) {
+func (st *storage) Put(id string, originalUrl string) error {
 
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer db.Close()
 
-	_, err = db.Exec(fmt.Sprintf("insert into %s(id, url) values('%s','%s')", table, id, originalUrl))
-	if err != nil {
-		return false, ErrUnique
-	}
-
-	return true, nil
+	_ , err = db.Exec(fmt.Sprintf("insert into %s(id, url) values('%s','%s')", table, id, originalUrl))
+	return err
 }
 
 func (st *storage) Get(id string) (string, error) {
