@@ -1,0 +1,16 @@
+server:
+   bind: '0.0.0.0:8585'
+
+storage:
+   type: 'sqlite'   
+
+sqlite:
+   path: './finch.db'
+   table: 'urls'           
+
+cassandra:
+   hosts: '127.0.0.1'
+   keyspace: 'default'        
+   table: 'urls'
+   consistency: 'One'
+              

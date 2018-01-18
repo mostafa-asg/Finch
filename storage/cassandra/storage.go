@@ -2,8 +2,11 @@ package cassandra
 
 import (
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/gocql/gocql"
+	config "github.com/spf13/viper"
 )
 
 type storage struct {
@@ -13,9 +16,9 @@ type storage struct {
 
 func New() *storage {
 
-	cluster := gocql.NewCluster("127.0.0.1")
-	cluster.Keyspace = "default"
-	cluster.Consistency = gocql.One
+	cluster := gocql.NewCluster(config.GetString("cassandra.hosts"))
+	cluster.Keyspace = config.GetString("cassandra.keyspace")
+	cluster.Consistency = getConsistencyFromConfig()
 	session, err := cluster.CreateSession()
 	if err != nil {
 		panic(err)
@@ -23,8 +26,38 @@ func New() *storage {
 
 	return &storage{
 		session,
-		"urls",
+		config.GetString("cassandra.table"),
 	}
+}
+
+func getConsistencyFromConfig() gocql.Consistency {
+
+	consistency := strings.ToLower(config.GetString("cassandra.consistency"))
+	switch consistency {
+	case "any":
+		return gocql.Any
+	case "one":
+		return gocql.One
+	case "two":
+		return gocql.Two
+	case "three":
+		return gocql.Three
+	case "quorum":
+		return gocql.Quorum
+	case "all":
+		return gocql.All
+	case "localquorum":
+		return gocql.LocalQuorum
+	case "eachquorum":
+		return gocql.EachQuorum
+	case "localone":
+		return gocql.LocalOne
+	default:
+		log.Fatal("invalid config value for cassandra.consistency")
+	}
+
+	//this line won't execute
+	return gocql.One
 }
 
 func (st *storage) Put(id string, originalUrl string) error {

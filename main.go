@@ -2,18 +2,42 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
+
 	"github.com/mostafa-asg/finch/core"
 	"github.com/mostafa-asg/finch/generator/base62"
 	"github.com/mostafa-asg/finch/storage/sqlite"
+	config "github.com/spf13/viper"
 )
 
 var storage core.Storage
 var generator core.Generator
 
 func main() {
+	var configPath string
+	flag.StringVar(&configPath, "config", "configs/finch.yml", "config file path")
+	flag.Parse()
+
+	if !isFileExists(configPath) {
+		log.Fatal("Config file does not exist", configPath)
+	}
+
+	configDir, configFilename := filepath.Split(configPath)
+	configFilename = configFilename[0:strings.LastIndexByte(configFilename, byte('.'))]
+
+	config.SetConfigName(configFilename)
+	config.AddConfigPath(configDir)
+	err := config.ReadInConfig()
+	if err != nil {
+		log.Fatal("Error reading config file", err)
+	}
 
 	storage = sqlite.New()
 	generator = base62.NewConcurrent()
@@ -21,11 +45,21 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/get/{id}", getHandler).Methods("GET")
 	router.HandleFunc("/hash", hashHandler).Methods("POST")
-	http.ListenAndServe(":8585", router)
+	http.ListenAndServe(config.GetString("server.bind"), router)
+}
+
+// Exists reports whether the named file or directory exists.
+func isFileExists(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }
 
 type hashResponse struct {
-	TinyUrl string `json:"tiny,omitempty"`
+	TinyUrl      string `json:"tiny,omitempty"`
 	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 type hashRequest struct {
@@ -40,7 +74,7 @@ func hashHandler(w http.ResponseWriter, r *http.Request) {
 	try := 0
 	for {
 		newID = generator.GenerateID()
-		err := storage.Put(newID, request.Url)		
+		err := storage.Put(newID, request.Url)
 		if err == nil {
 			break
 		}
@@ -48,13 +82,13 @@ func hashHandler(w http.ResponseWriter, r *http.Request) {
 		//maybe we had generated duplicate id
 		//so we try again
 		try++
-		if try>=20 {
-			//maybe almost ID has been taken
+		if try >= 20 {
+			//maybe almost all ID has been taken
 			//or maybe the storage system has been down
 			json.NewEncoder(w).Encode(hashResponse{
 				ErrorMessage: "Sorry , we cannot serve your request right now",
 			})
-			return 
+			return
 		}
 	}
 
