@@ -16,6 +16,7 @@ import (
 	"github.com/mostafa-asg/finch/generator/base62"
 	"github.com/mostafa-asg/finch/storage/cassandra"
 	"github.com/mostafa-asg/finch/storage/sqlite"
+	"github.com/prometheus/client_golang/prometheus"
 	config "github.com/spf13/viper"
 )
 
@@ -23,6 +24,7 @@ var storage core.Storage
 var generator core.Generator
 
 func main() {
+
 	var configPath string
 	flag.StringVar(&configPath, "config", "configs/finch.yml", "config file path")
 	flag.Parse()
@@ -45,8 +47,9 @@ func main() {
 	generator = base62.NewConcurrent()
 
 	router := mux.NewRouter()
-	router.HandleFunc("/get/{id}", getHandler).Methods("GET")
-	router.HandleFunc("/hash", hashHandler).Methods("POST")
+	router.HandleFunc("/get/{id}", getHandler()).Methods("GET")
+	router.HandleFunc("/hash", hashHandler()).Methods("POST")
+	router.Handle("/metrics", prometheus.Handler())
 	http.ListenAndServe(config.GetString("server.bind"), router)
 }
 
@@ -82,36 +85,62 @@ type hashRequest struct {
 	Url string `json:"url"`
 }
 
-func hashHandler(w http.ResponseWriter, r *http.Request) {
-	var request hashRequest
-	json.NewDecoder(r.Body).Decode(&request)
+func hashHandler() func(http.ResponseWriter, *http.Request) {
 
-	var newID string
-	try := 0
-	for {
-		newID = generator.GenerateID()
-		err := storage.Put(newID, request.Url)
-		if err == nil {
-			break
-		}
-
-		//maybe we had generated duplicate id
-		//so we try again
-		try++
-		if try >= 20 {
-			//maybe almost all ID has been taken
-			//or maybe the storage system has been down
-			json.NewEncoder(w).Encode(hashResponse{
-				ErrorMessage: "Sorry , we cannot serve your request right now",
-			})
-			return
-		}
-	}
-
-	json.NewEncoder(w).Encode(hashResponse{
-		TinyUrl: newID,
+	count := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "api_http_hash_request_total",
+		Help: "Total hash requests count",
 	})
 
+	collisions := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "api_http_collisions_total",
+		Help: "Total database ID collisions count",
+	})
+
+	failer := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "api_http_hash_fail_total",
+		Help: "Total number of unanswered hash requests",
+	})
+
+	prometheus.MustRegister(count)
+	prometheus.MustRegister(collisions)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		count.Inc()
+
+		var request hashRequest
+		json.NewDecoder(r.Body).Decode(&request)
+
+		var newID string
+		try := 0
+		for {
+			newID = generator.GenerateID()
+			err := storage.Put(newID, request.Url)
+			if err == nil {
+				break
+			}
+
+			//maybe we had generated duplicate id
+			//so we try again
+			try++
+			collisions.Inc()
+			if try >= 20 {
+				//maybe almost all ID has been taken
+				//or maybe the storage system has been down
+				failer.Inc()
+				json.NewEncoder(w).Encode(hashResponse{
+					ErrorMessage: "Sorry , we cannot serve your request right now",
+				})
+				return
+			}
+		}
+
+		json.NewEncoder(w).Encode(hashResponse{
+			TinyUrl: newID,
+		})
+
+	}
 }
 
 type getResponse struct {
@@ -119,21 +148,33 @@ type getResponse struct {
 	Url   string `json:"url,omitempty"`
 }
 
-func getHandler(w http.ResponseWriter, r *http.Request) {
+func getHandler() func(http.ResponseWriter, *http.Request) {
 
-	params := mux.Vars(r)
-	id := params["id"]
+	count := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "api_http_get_request",
+		Help: "Total get requests count",
+	}, []string{"type"})
 
-	url, err := storage.Get(id)
-	if err != nil {
+	prometheus.MustRegister(count)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		params := mux.Vars(r)
+		id := params["id"]
+
+		url, err := storage.Get(id)
+		if err != nil {
+			count.WithLabelValues("miss").Inc()
+			json.NewEncoder(w).Encode(getResponse{
+				Found: false,
+			})
+			return
+		}
+
+		count.WithLabelValues("hit").Inc()
 		json.NewEncoder(w).Encode(getResponse{
-			Found: false,
+			Found: true,
+			Url:   url,
 		})
-		return
 	}
-
-	json.NewEncoder(w).Encode(getResponse{
-		Found: true,
-		Url:   url,
-	})
 }
