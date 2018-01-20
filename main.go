@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/mostafa-asg/finch/core"
 	"github.com/mostafa-asg/finch/generator/base62"
+	"github.com/mostafa-asg/finch/storage/cassandra"
 	"github.com/mostafa-asg/finch/storage/sqlite"
 	config "github.com/spf13/viper"
 )
@@ -39,13 +41,27 @@ func main() {
 		log.Fatal("Error reading config file", err)
 	}
 
-	storage = sqlite.New()
+	storage = instantiateStorage()
 	generator = base62.NewConcurrent()
 
 	router := mux.NewRouter()
 	router.HandleFunc("/get/{id}", getHandler).Methods("GET")
 	router.HandleFunc("/hash", hashHandler).Methods("POST")
 	http.ListenAndServe(config.GetString("server.bind"), router)
+}
+
+func instantiateStorage() core.Storage {
+
+	storage := config.GetString("storage.type")
+	switch storage {
+	case "sqlite":
+		return sqlite.New()
+	case "cassandra":
+		return cassandra.New()
+	}
+
+	log.Fatal(fmt.Sprintf("Unknown storage type : %s", storage))
+	return nil
 }
 
 // Exists reports whether the named file or directory exists.
