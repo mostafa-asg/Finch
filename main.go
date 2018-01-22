@@ -14,6 +14,7 @@ import (
 
 	"github.com/mostafa-asg/finch/core"
 	"github.com/mostafa-asg/finch/generator/base62"
+	"github.com/mostafa-asg/finch/http/model"
 	"github.com/mostafa-asg/finch/storage/cassandra"
 	"github.com/mostafa-asg/finch/storage/sqlite"
 	"github.com/prometheus/client_golang/prometheus"
@@ -77,14 +78,6 @@ func isFileExists(path string) bool {
 	return true
 }
 
-type hashResponse struct {
-	TinyUrl      string `json:"tiny,omitempty"`
-	ErrorMessage string `json:"errorMessage,omitempty"`
-}
-type hashRequest struct {
-	Url string `json:"url"`
-}
-
 func hashHandler() func(http.ResponseWriter, *http.Request) {
 
 	count := prometheus.NewCounter(prometheus.CounterOpts{
@@ -109,7 +102,7 @@ func hashHandler() func(http.ResponseWriter, *http.Request) {
 
 		count.Inc()
 
-		var request hashRequest
+		var request model.HashRequest
 		json.NewDecoder(r.Body).Decode(&request)
 
 		var newID string
@@ -129,23 +122,18 @@ func hashHandler() func(http.ResponseWriter, *http.Request) {
 				//maybe almost all ID has been taken
 				//or maybe the storage system has been down
 				failer.Inc()
-				json.NewEncoder(w).Encode(hashResponse{
+				json.NewEncoder(w).Encode(model.HashResponse{
 					ErrorMessage: "Sorry , we cannot serve your request right now",
 				})
 				return
 			}
 		}
 
-		json.NewEncoder(w).Encode(hashResponse{
+		json.NewEncoder(w).Encode(model.HashResponse{
 			TinyUrl: newID,
 		})
 
 	}
-}
-
-type getResponse struct {
-	Found bool   `json:"found"`
-	Url   string `json:"url,omitempty"`
 }
 
 func getHandler() func(http.ResponseWriter, *http.Request) {
@@ -165,14 +153,14 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 		url, err := storage.Get(id)
 		if err != nil {
 			count.WithLabelValues("miss").Inc()
-			json.NewEncoder(w).Encode(getResponse{
+			json.NewEncoder(w).Encode(model.GetResponse{
 				Found: false,
 			})
 			return
 		}
 
 		count.WithLabelValues("hit").Inc()
-		json.NewEncoder(w).Encode(getResponse{
+		json.NewEncoder(w).Encode(model.GetResponse{
 			Found: true,
 			Url:   url,
 		})
