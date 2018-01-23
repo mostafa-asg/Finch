@@ -97,6 +97,7 @@ func hashHandler() func(http.ResponseWriter, *http.Request) {
 
 	prometheus.MustRegister(count)
 	prometheus.MustRegister(collisions)
+	prometheus.MustRegister(failer)
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -139,7 +140,7 @@ func hashHandler() func(http.ResponseWriter, *http.Request) {
 func getHandler() func(http.ResponseWriter, *http.Request) {
 
 	count := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "api_http_get_request",
+		Name: "api_http_get_request_total",
 		Help: "Total get requests count",
 	}, []string{"type"})
 
