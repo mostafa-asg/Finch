@@ -1,6 +1,7 @@
 package cassandra
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -13,6 +14,8 @@ type storage struct {
 	session *gocql.Session
 	table   string
 }
+
+var ErrDuplicate = errors.New("Duplicate row ID")
 
 func New() *storage {
 
@@ -61,9 +64,19 @@ func getConsistencyFromConfig() gocql.Consistency {
 }
 
 func (st *storage) Put(id string, originalUrl string) error {
-
 	insertStat := fmt.Sprintf("INSERT INTO %s(id,url) VALUES (?,?) IF NOT EXISTS;", st.table)
-	return st.session.Query(insertStat, id, originalUrl).Exec()
+
+	var (
+		idCAS          string
+		originalUrlCAS string
+	)
+
+	applied, err := st.session.Query(insertStat, id, originalUrl).ScanCAS(&idCAS, &originalUrlCAS)
+	if applied == false {
+		return ErrDuplicate
+	}
+
+	return err
 }
 
 func (st *storage) Get(id string) (string, error) {
