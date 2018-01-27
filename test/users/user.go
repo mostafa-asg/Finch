@@ -80,10 +80,9 @@ func (u *user) makeGetRequests() {
 
 func (u *user) makeHashRequests() {
 
-	generator := base62.New(10)
-
 	go func() {
 
+		generator := base62.New(10)
 		ticker := time.NewTicker(100 * time.Millisecond)
 		u.wg.Add(1)
 
