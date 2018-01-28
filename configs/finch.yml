@@ -1,5 +1,6 @@
 server:
-   bind: '0.0.0.0:8585'
+   address: '127.0.0.1'
+   port: 8585
 
 storage:
    type: 'sqlite'   

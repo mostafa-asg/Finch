@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"strconv"
 	"context"
 
 	"github.com/gorilla/mux"
@@ -19,7 +20,9 @@ import (
 	"github.com/mostafa-asg/finch/http/model"
 	"github.com/mostafa-asg/finch/storage/cassandra"
 	"github.com/mostafa-asg/finch/storage/sqlite"
+	"github.com/mostafa-asg/finch/service/registrator"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/teris-io/shortid"
 	config "github.com/spf13/viper"
 )
 
@@ -54,11 +57,24 @@ func main() {
 	router.HandleFunc("/hash", hashHandler()).Methods("POST")
 	router.Handle("/metrics", prometheus.Handler())
 
+	serviceID , err := shortid.Generate()
+	if err != nil {
+		log.Fatal("Error in creating short uuid " , err)
+	}
+
+	serverAddress := config.GetString("server.address")
+	port := config.GetInt("server.port")
+
 	server := &http.Server{
-		Addr:config.GetString("server.bind"),
+		Addr:serverAddress + ":" + strconv.Itoa(port),
 		Handler:router,
 	}
 	go func(){
+
+		err = registrator.NewConsulServiceDiscovery().Register("finch-REST",serviceID,serverAddress,port)
+		if err != nil {
+			log.Println("Unable to register service " , err)
+		}
 
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatal(err)
@@ -69,7 +85,15 @@ func main() {
 	stop := make(chan os.Signal, 1)	
 	signal.Notify(stop, os.Interrupt)
 	<-stop
+	deregisterService(serviceID)
 	server.Shutdown( context.Background() )
+}
+
+func deregisterService(serviceID string) {
+	err := registrator.NewConsulServiceDiscovery().Deregister(serviceID)
+	if err != nil {
+		log.Println("Unable to deregister service " , err)
+	}
 }
 
 func instantiateStorage() core.Storage {
