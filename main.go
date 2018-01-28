@@ -7,8 +7,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"context"
 
 	"github.com/gorilla/mux"
 
@@ -51,7 +53,23 @@ func main() {
 	router.HandleFunc("/get/{id}", getHandler()).Methods("GET")
 	router.HandleFunc("/hash", hashHandler()).Methods("POST")
 	router.Handle("/metrics", prometheus.Handler())
-	http.ListenAndServe(config.GetString("server.bind"), router)
+
+	server := &http.Server{
+		Addr:config.GetString("server.bind"),
+		Handler:router,
+	}
+	go func(){
+
+		if err := server.ListenAndServe(); err != nil {
+			log.Fatal(err)
+		}
+
+	}()
+
+	stop := make(chan os.Signal, 1)	
+	signal.Notify(stop, os.Interrupt)
+	<-stop
+	server.Shutdown( context.Background() )
 }
 
 func instantiateStorage() core.Storage {
