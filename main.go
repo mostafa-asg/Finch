@@ -1,29 +1,30 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"strconv"
-	"context"
+	"strings"
 
 	"github.com/gorilla/mux"
 
 	"github.com/mostafa-asg/finch/core"
 	"github.com/mostafa-asg/finch/generator/base62"
 	"github.com/mostafa-asg/finch/http/model"
+	"github.com/mostafa-asg/finch/service/registrator"
 	"github.com/mostafa-asg/finch/storage/cassandra"
 	"github.com/mostafa-asg/finch/storage/sqlite"
-	"github.com/mostafa-asg/finch/service/registrator"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/teris-io/shortid"
 	config "github.com/spf13/viper"
+	"github.com/teris-io/shortid"
 )
 
 var storage core.Storage
@@ -57,23 +58,27 @@ func main() {
 	router.HandleFunc("/hash", hashHandler()).Methods("POST")
 	router.Handle("/metrics", prometheus.Handler())
 
-	serviceID , err := shortid.Generate()
+	serviceID, err := shortid.Generate()
 	if err != nil {
-		log.Fatal("Error in creating short uuid " , err)
+		log.Fatal("Error in creating short uuid ", err)
 	}
 
 	serverAddress := config.GetString("server.address")
 	port := config.GetInt("server.port")
 
 	server := &http.Server{
-		Addr:serverAddress + ":" + strconv.Itoa(port),
-		Handler:router,
+		Addr:    serverAddress + ":" + strconv.Itoa(port),
+		Handler: router,
 	}
-	go func(){
+	go func() {
 
-		err = registrator.NewConsulServiceDiscovery().Register("finch-REST",serviceID,serverAddress,port)
+		hostIP := resolveHostIp()
+		if hostIP == "" {
+			log.Fatal("could not find host IP address")
+		}
+		err = registrator.NewConsulServiceDiscovery().Register("finch-REST", serviceID, hostIP, port)
 		if err != nil {
-			log.Println("Unable to register service " , err)
+			log.Println("Unable to register service ", err)
 		}
 
 		if err := server.ListenAndServe(); err != nil {
@@ -82,17 +87,42 @@ func main() {
 
 	}()
 
-	stop := make(chan os.Signal, 1)	
+	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	<-stop
 	deregisterService(serviceID)
-	server.Shutdown( context.Background() )
+	server.Shutdown(context.Background())
+}
+
+func resolveHostIp() string {
+
+	netInterfaceAddresses, err := net.InterfaceAddrs()
+
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
+
+	for _, netInterfaceAddress := range netInterfaceAddresses {
+
+		networkIp, ok := netInterfaceAddress.(*net.IPNet)
+
+		if ok && !networkIp.IP.IsLoopback() && networkIp.IP.To4() != nil {
+
+			ip := networkIp.IP.String()
+
+			log.Println("Resolved Host IP: " + ip)
+
+			return ip
+		}
+	}
+	return ""
 }
 
 func deregisterService(serviceID string) {
 	err := registrator.NewConsulServiceDiscovery().Deregister(serviceID)
 	if err != nil {
-		log.Println("Unable to deregister service " , err)
+		log.Println("Unable to deregister service ", err)
 	}
 }
 
