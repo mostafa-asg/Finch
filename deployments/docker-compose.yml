@@ -1,0 +1,11 @@
+version: '3'
+services:
+  rest-api:
+    image: "finch-rest-api:latest"
+    depends_on:
+      - consul
+  consul:
+    image: "consul:1.0.0"   
+    command: agent -server -bind='{{ GetInterfaceIP "eth0" }}' -client=0.0.0.0 -ui -bootstrap      
+    ports:
+      - "8500:8500"
