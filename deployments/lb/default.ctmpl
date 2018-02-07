@@ -1,0 +1,13 @@
+upstream finch-rest {
+  least_conn;
+  {{range service "finch-REST"}}server {{.Address}}:{{.Port}};
+  {{end}}    
+}
+
+server {
+  listen 80 default_server;
+  charset utf-8;
+  location /api {
+    proxy_pass http://finch-rest;
+  } 
+}
