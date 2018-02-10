@@ -7,7 +7,10 @@ upstream finch-rest {
 server {
   listen 80 default_server;
   charset utf-8;
-  location /api {
-    proxy_pass http://finch-rest;
+  location /api/get {
+    proxy_pass http://finch-rest/get;
+  } 
+  location /api/hash {
+    proxy_pass http://finch-rest/hash;
   } 
 }
