@@ -7,3 +7,6 @@ cd finch-rest & docker build --tag finch-rest:latest ./finch-rest
 
 # finch load balancer
 cd lb & docker build --tag finch-lb:latest ./lb
+
+# cassandra
+cd cassandraPrepare & docker build --tag finch-cassandra-prepare:latest ./cassandraPrepare

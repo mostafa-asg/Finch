@@ -1,0 +1,37 @@
+version: '3'
+services:
+  rest-api:
+    image: "finch-rest:latest"
+    depends_on:
+      - consul
+      - cassandraPrepare
+    environment:
+      - STORAGE_TYPE=cassandra
+      - CASSANDRA_HOSTS=cassandra
+  cassandra:
+    image: "cassandra:3.11.1"                
+  cassandraPrepare:
+    image: "finch-cassandra-prepare:latest"                        
+    depends_on:
+      - cassandra
+    restart: on-failure  
+  consul:
+    image: "consul:1.0.0"   
+    command: agent -server -bind='{{ GetInterfaceIP "eth0" }}' -client=0.0.0.0 -ui -bootstrap      
+    ports:
+      - "8500:8500"      
+  lb:
+    image: "finch-lb:latest"    
+    depends_on:
+      - rest-api
+    ports:
+      - "8080:80"  
+  prometheus:
+    image: "prom/prometheus:v2.1.0"    
+    volumes:
+      - "./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - consul
+        

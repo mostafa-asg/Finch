@@ -11,7 +11,7 @@ sqlite:
 
 cassandra:
    hosts: '127.0.0.1'
-   keyspace: 'default'        
+   keyspace: 'finch'        
    table: 'urls'
    consistency: 'One'
               
