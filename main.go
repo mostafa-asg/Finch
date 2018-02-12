@@ -43,6 +43,8 @@ func main() {
 	configDir, configFilename := filepath.Split(configPath)
 	configFilename = configFilename[0:strings.LastIndexByte(configFilename, byte('.'))]
 
+	config.AutomaticEnv()
+	config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	config.SetConfigName(configFilename)
 	config.AddConfigPath(configDir)
 	err := config.ReadInConfig()
