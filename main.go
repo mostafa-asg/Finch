@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -78,10 +79,19 @@ func main() {
 		if hostIP == "" {
 			log.Fatal("could not find host IP address")
 		}
-		err = registrator.NewConsulServiceDiscovery().Register("finch-REST", serviceID, hostIP, port)
-		if err != nil {
-			log.Println("Unable to register service ", err)
-		}
+
+		go func() {
+			for {
+				err = registrator.NewConsulServiceDiscovery().Register("finch-REST", serviceID, hostIP, port)
+				if err != nil {
+					log.Println("Unable to register service ", err)
+					//Try one second later
+					time.Sleep(1 * time.Second)
+				} else {
+					break
+				}
+			}
+		}()
 
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatal(err)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/gocql/gocql"
 	config "github.com/spf13/viper"
@@ -19,12 +20,22 @@ var ErrDuplicate = errors.New("Duplicate row ID")
 
 func New() *storage {
 
-	cluster := gocql.NewCluster(config.GetString("cassandra.hosts"))
+	hosts := config.GetString("cassandra.hosts")
+	cluster := gocql.NewCluster(hosts)
 	cluster.Keyspace = config.GetString("cassandra.keyspace")
 	cluster.Consistency = getConsistencyFromConfig()
-	session, err := cluster.CreateSession()
-	if err != nil {
-		panic(err)
+
+	var session *gocql.Session
+	var err error
+	for {
+		session, err = cluster.CreateSession()
+		if err != nil {
+			log.Println(fmt.Sprintf("Could not connect to casssandra at %s", hosts), err)
+			//Try one second later
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
 	}
 
 	return &storage{
