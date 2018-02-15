@@ -11,9 +11,10 @@ import (
 	config "github.com/spf13/viper"
 )
 
+const urls_table string = "urls"
+
 type storage struct {
 	session *gocql.Session
-	table   string
 }
 
 var ErrDuplicate = errors.New("Duplicate row ID")
@@ -40,7 +41,6 @@ func New() *storage {
 
 	return &storage{
 		session,
-		config.GetString("cassandra.table"),
 	}
 }
 
@@ -75,7 +75,7 @@ func getConsistencyFromConfig() gocql.Consistency {
 }
 
 func (st *storage) Put(id string, originalUrl string) error {
-	insertStat := fmt.Sprintf("INSERT INTO %s(id,url) VALUES (?,?) IF NOT EXISTS;", st.table)
+	insertStat := fmt.Sprintf("INSERT INTO %s(id,url) VALUES (?,?) IF NOT EXISTS;", urls_table)
 
 	var (
 		idCAS          string
@@ -92,7 +92,7 @@ func (st *storage) Put(id string, originalUrl string) error {
 
 func (st *storage) Get(id string) (string, error) {
 
-	selectStat := fmt.Sprintf("SELECT url FROM %s WHERE id = ? LIMIT 1", st.table)
+	selectStat := fmt.Sprintf("SELECT url FROM %s WHERE id = ? LIMIT 1", urls_table)
 
 	var url string
 	err := st.session.Query(selectStat, id).Consistency(gocql.One).Scan(&url)

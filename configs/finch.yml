@@ -7,11 +7,9 @@ storage:
 
 sqlite:
    path: './finch.db'
-   table: 'urls'           
 
 cassandra:
    hosts: '127.0.0.1'
-   keyspace: 'finch'        
-   table: 'urls'
+   keyspace: 'finch'
    consistency: 'One'
               

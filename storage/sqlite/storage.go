@@ -3,21 +3,25 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
+	"log"
 
 	_ "github.com/mattn/go-sqlite3"
 	config "github.com/spf13/viper"
 )
 
+const urls_table string = "urls"
+
 type storage struct {
 	dbPath string
-	table  string
 }
 
 func New() *storage {
-	ensureDatabaseExists()
+	err := ensureDatabaseExists()
+	if err != nil {
+		log.Fatal("Error in initializing sqllite database", err)
+	}
 	return &storage{
 		config.GetString("sqlite.path"),
-		config.GetString("sqlite.table"),
 	}
 }
 
@@ -29,7 +33,7 @@ func (st *storage) Put(id string, originalUrl string) error {
 	}
 	defer db.Close()
 
-	_, err = db.Exec(fmt.Sprintf("insert into %s(id, url) values('%s','%s')", st.table, id, originalUrl))
+	_, err = db.Exec(fmt.Sprintf("insert into %s(id, url) values('%s','%s')", urls_table, id, originalUrl))
 	return err
 }
 
@@ -41,7 +45,7 @@ func (st *storage) Get(id string) (string, error) {
 	}
 	defer db.Close()
 
-	row := db.QueryRow(fmt.Sprintf("select url from urls where id='%s'", id))
+	row := db.QueryRow(fmt.Sprintf("select url from %s where id='%s'", urls_table, id))
 	var url string
 	err = row.Scan(&url)
 	if err != nil {
@@ -59,7 +63,7 @@ func ensureDatabaseExists() error {
 	}
 	defer db.Close()
 
-	sqlStmt := fmt.Sprintf("create table if not exists %s (id nvarchar(10) not null primary key, url text);", config.GetString("sqlite.table"))
+	sqlStmt := fmt.Sprintf("create table if not exists %s (id nvarchar(10) not null primary key, url text);", urls_table)
 
 	_, err = db.Exec(sqlStmt)
 	if err != nil {
