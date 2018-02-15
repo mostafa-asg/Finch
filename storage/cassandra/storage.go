@@ -108,3 +108,8 @@ func (st *storage) Visit(shortUrl string, info core.VisitInfo) error {
 	//not implemented yet
 	return nil
 }
+
+func (st *storage) Count(shortUrl string) int {
+	//not implemented yet
+	return 0
+}

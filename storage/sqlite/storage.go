@@ -74,6 +74,25 @@ func (st *storage) Visit(shortUrl string, info core.VisitInfo) error {
 	return err
 }
 
+func (st *storage) Count(shortUrl string) int {
+	db, err := sql.Open("sqlite3", st.dbPath)
+	if err != nil {
+		log.Println("Could not open sqlite database", err)
+		return 0
+	}
+	defer db.Close()
+
+	row := db.QueryRow(fmt.Sprintf("select count(*) from %s where shortUrl='%s'", visit_table, shortUrl))
+	var count int
+	err = row.Scan(&count)
+	if err != nil {
+		log.Panicln("Sqlite count error", err)
+		return 0
+	}
+
+	return count
+}
+
 func ensureDatabaseExists() error {
 
 	db, err := sql.Open("sqlite3", config.GetString("sqlite.path"))

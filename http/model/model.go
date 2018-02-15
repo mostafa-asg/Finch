@@ -13,3 +13,7 @@ type GetResponse struct {
 	Found bool   `json:"found"`
 	Url   string `json:"url,omitempty"`
 }
+
+type CountResponse struct {
+	Count int `json:"count"`
+}
