@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/mostafa-asg/finch/core"
 	config "github.com/spf13/viper"
 )
 
@@ -101,4 +102,9 @@ func (st *storage) Get(id string) (string, error) {
 	}
 
 	return url, nil
+}
+
+func (st *storage) Visit(shortUrl string, info core.VisitInfo) error {
+	//not implemented yet
+	return nil
 }

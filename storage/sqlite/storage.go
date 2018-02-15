@@ -6,10 +6,12 @@ import (
 	"log"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/mostafa-asg/finch/core"
 	config "github.com/spf13/viper"
 )
 
 const urls_table string = "urls"
+const visit_table string = "visit"
 
 type storage struct {
 	dbPath string
@@ -55,6 +57,23 @@ func (st *storage) Get(id string) (string, error) {
 	return url, nil
 }
 
+func (st *storage) Visit(shortUrl string, info core.VisitInfo) error {
+	db, err := sql.Open("sqlite3", st.dbPath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	sqlStm := fmt.Sprintf(
+		"insert into %s(shortUrl,year,month,day,hour,minute,referrer,browser,country,platform) "+
+			"values ('%s',%d,%d,%d,%d,%d,'%s','%s','%s','%s')",
+		visit_table, shortUrl, info.Year, info.Month, info.Day, info.Hour,
+		info.Minute, info.Referrer, info.Browser, info.Country, info.Platform)
+
+	_, err = db.Exec(sqlStm)
+	return err
+}
+
 func ensureDatabaseExists() error {
 
 	db, err := sql.Open("sqlite3", config.GetString("sqlite.path"))
@@ -64,7 +83,23 @@ func ensureDatabaseExists() error {
 	defer db.Close()
 
 	sqlStmt := fmt.Sprintf("create table if not exists %s (id nvarchar(10) not null primary key, url text);", urls_table)
+	_, err = db.Exec(sqlStmt)
+	if err != nil {
+		return err
+	}
 
+	sqlStmt = fmt.Sprintf("create table if not exists %s ("+
+		"id integer primary key, "+
+		"shortUrl text ,"+
+		"year integer ,"+
+		"month integer ,"+
+		"day integer ,"+
+		"hour integer ,"+
+		"minute integer ,"+
+		"referrer text ,"+
+		"browser text ,"+
+		"country text ,"+
+		"platform text);", visit_table)
 	_, err = db.Exec(sqlStmt)
 	if err != nil {
 		return err

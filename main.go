@@ -244,6 +244,26 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
+		referrer := r.Header.Get("Referer")
+		browser := r.Header.Get("user-agent")
+		go func(shortUrl string, referrer, browser, country, platform string) {
+			currentTime := time.Now()
+			err := storage.Visit(shortUrl, core.VisitInfo{
+				Year:     currentTime.Year(),
+				Month:    int(currentTime.Month()),
+				Day:      currentTime.Day(),
+				Hour:     currentTime.Hour(),
+				Minute:   currentTime.Minute(),
+				Referrer: referrer,
+				Browser:  browser,
+				Country:  country,
+				Platform: platform,
+			})
+			if err != nil {
+				log.Println(err)
+			}
+		}(id, referrer, browser, "", "") //TODO get browser/country/platform correctly
+
 		count.WithLabelValues("hit").Inc()
 		json.NewEncoder(w).Encode(model.GetResponse{
 			Found: true,
