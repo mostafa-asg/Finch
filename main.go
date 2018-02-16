@@ -23,6 +23,8 @@ import (
 	"github.com/mostafa-asg/finch/service/registrator"
 	"github.com/mostafa-asg/finch/storage/cassandra"
 	"github.com/mostafa-asg/finch/storage/sqlite"
+	"github.com/mostafa-asg/ip2country"
+	"github.com/mssola/user_agent"
 	"github.com/prometheus/client_golang/prometheus"
 	config "github.com/spf13/viper"
 	"github.com/teris-io/shortid"
@@ -246,7 +248,12 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		referrer := r.Header.Get("Referer")
-		browser := r.Header.Get("user-agent")
+		ua := user_agent.New(r.UserAgent())
+		browser, _ := ua.Browser()
+		country := ip2country.GetCountry(getRemoteAddress(r))
+		if country == "ZZ" {
+			country = ""
+		}
 		go func(shortUrl string, referrer, browser, country, platform string) {
 			currentTime := time.Now()
 			err := storage.Visit(shortUrl, core.VisitInfo{
@@ -263,7 +270,7 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				log.Println(err)
 			}
-		}(id, referrer, browser, "", "") //TODO get browser/country/platform correctly
+		}(id, referrer, browser, country, ua.Platform()) //TODO get browser/country/platform correctly
 
 		count.WithLabelValues("hit").Inc()
 		json.NewEncoder(w).Encode(model.GetResponse{
@@ -271,6 +278,22 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 			Url:   url,
 		})
 	}
+}
+
+func getRemoteAddress(r *http.Request) string {
+
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		log.Printf("Cannot split host and port for %s\n", r.RemoteAddr)
+		return ""
+	}
+
+	forwardedFor := r.Header.Get("X-Forwarded-For")
+	if forwardedFor != "" {
+		host = strings.Split(forwardedFor, ", ")[0] //choose the first one
+	}
+
+	return host
 }
 
 func countHandler() func(http.ResponseWriter, *http.Request) {
