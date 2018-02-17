@@ -2,6 +2,9 @@ server:
    address: '0.0.0.0'
    port: 8585
 
+ip2country:
+  file.path: './dbip-country2.csv'   
+
 storage:
    type: 'sqlite'   
 

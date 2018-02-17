@@ -52,11 +52,15 @@ func main() {
 	config.AddConfigPath(configDir)
 	err := config.ReadInConfig()
 	if err != nil {
-		log.Fatal("Error reading config file", err)
+		log.Fatalln("Error reading config file", err)
 	}
 
 	storage = instantiateStorage()
 	generator = base62.NewConcurrent()
+	err = ip2country.Load(config.GetString("ip2country.file.path"))
+	if err != nil {
+		log.Fatalln("could not find ip2country file", err)
+	}
 
 	router := mux.NewRouter()
 	router.HandleFunc("/get/{id}", getHandler()).Methods("GET")
