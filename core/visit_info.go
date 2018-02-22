@@ -10,5 +10,5 @@ type VisitInfo struct {
 	Referrer string
 	Browser  string
 	Country  string
-	Platform string
+	OS       string
 }

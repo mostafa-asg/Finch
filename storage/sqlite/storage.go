@@ -65,10 +65,10 @@ func (st *storage) Visit(shortUrl string, info core.VisitInfo) error {
 	defer db.Close()
 
 	sqlStm := fmt.Sprintf(
-		"insert into %s(shortUrl,year,month,day,hour,minute,referrer,browser,country,platform) "+
+		"insert into %s(shortUrl,year,month,day,hour,minute,referrer,browser,country,os) "+
 			"values ('%s',%d,%d,%d,%d,%d,'%s','%s','%s','%s')",
 		visit_table, shortUrl, info.Year, info.Month, info.Day, info.Hour,
-		info.Minute, info.Referrer, info.Browser, info.Country, info.Platform)
+		info.Minute, info.Referrer, info.Browser, info.Country, info.OS)
 
 	_, err = db.Exec(sqlStm)
 	return err
@@ -118,7 +118,7 @@ func ensureDatabaseExists() error {
 		"referrer text ,"+
 		"browser text ,"+
 		"country text ,"+
-		"platform text);", visit_table)
+		"os text);", visit_table)
 	_, err = db.Exec(sqlStmt)
 	if err != nil {
 		return err

@@ -258,7 +258,7 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 		if country == "ZZ" {
 			country = ""
 		}
-		go func(shortUrl string, referrer, browser, country, platform string) {
+		go func(shortUrl string, referrer, browser, country, operationSystem string) {
 			currentTime := time.Now()
 			err := storage.Visit(shortUrl, core.VisitInfo{
 				Year:     currentTime.Year(),
@@ -269,12 +269,12 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 				Referrer: referrer,
 				Browser:  browser,
 				Country:  country,
-				Platform: platform,
+				OS:       operationSystem,
 			})
 			if err != nil {
 				log.Println(err)
 			}
-		}(id, referrer, browser, country, ua.Platform()) //TODO get browser/country/platform correctly
+		}(id, referrer, browser, country, ua.OS())
 
 		count.WithLabelValues("hit").Inc()
 		json.NewEncoder(w).Encode(model.GetResponse{
