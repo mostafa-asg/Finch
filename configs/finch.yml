@@ -11,6 +11,13 @@ storage:
 sqlite:
    path: './finch.db'
 
+mysql:
+   user: 'root'
+   pass: 'root'
+   host: 'localhost'
+   database: 'finchDB'
+
+
 cassandra:
    hosts: '127.0.0.1'
    keyspace: 'finch'

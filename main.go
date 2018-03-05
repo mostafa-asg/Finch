@@ -22,6 +22,7 @@ import (
 	"github.com/mostafa-asg/finch/http/model"
 	"github.com/mostafa-asg/finch/service/registrator"
 	"github.com/mostafa-asg/finch/storage/cassandra"
+	"github.com/mostafa-asg/finch/storage/mysql"
 	"github.com/mostafa-asg/finch/storage/sqlite"
 	"github.com/mostafa-asg/ip2country"
 	"github.com/prometheus/client_golang/prometheus"
@@ -151,6 +152,8 @@ func instantiateStorage() core.Storage {
 	switch storage {
 	case "sqlite":
 		return sqlite.New()
+	case "mysql":
+		return mysql.New()
 	case "cassandra":
 		return cassandra.New()
 	}
