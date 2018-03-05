@@ -24,10 +24,10 @@ import (
 	"github.com/mostafa-asg/finch/storage/cassandra"
 	"github.com/mostafa-asg/finch/storage/sqlite"
 	"github.com/mostafa-asg/ip2country"
-	"github.com/mssola/user_agent"
 	"github.com/prometheus/client_golang/prometheus"
 	config "github.com/spf13/viper"
 	"github.com/teris-io/shortid"
+	useragent "github.com/woothee/woothee-go"
 )
 
 var storage core.Storage
@@ -252,12 +252,12 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		referrer := r.Header.Get("Referer")
-		ua := user_agent.New(r.UserAgent())
-		browser, _ := ua.Browser()
+		browser, OSname := parseUserAgent(r.UserAgent())
 		country := ip2country.GetCountry(getRemoteAddress(r))
 		if country == "ZZ" {
 			country = ""
 		}
+
 		go func(shortUrl string, referrer, browser, country, operationSystem string) {
 			currentTime := time.Now()
 			err := storage.Visit(shortUrl, core.VisitInfo{
@@ -274,7 +274,7 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				log.Println(err)
 			}
-		}(id, referrer, browser, country, ua.OS())
+		}(id, referrer, browser, country, OSname)
 
 		count.WithLabelValues("hit").Inc()
 		json.NewEncoder(w).Encode(model.GetResponse{
@@ -282,6 +282,39 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 			Url:   url,
 		})
 	}
+}
+
+// Return browser and OS name
+func parseUserAgent(agent string) (string, string) {
+	ua, err := useragent.Parse(agent)
+	if err != nil {
+		return "Unknown", "Unknown"
+	}
+
+	browser := strings.ToLower(ua.Name)
+	switch browser {
+	case "chrome", "firefox", "opera", "safari", "edge":
+		//do nothing
+	case "internet explorer":
+		browser = "ie"
+	default:
+		browser = "other"
+	}
+
+	OSName := strings.ToLower(ua.Os)
+	if strings.HasPrefix(OSName, "windows") {
+		OSName = "windows"
+	}
+
+	switch OSName {
+	case "windows", "linux", "android", "mac osx", "chromeos", "ios":
+		//do nothing
+	default:
+		OSName = "other"
+	}
+
+	// return browser and OS name
+	return browser, OSName
 }
 
 func getRemoteAddress(r *http.Request) string {
