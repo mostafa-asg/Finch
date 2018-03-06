@@ -1,12 +1,12 @@
 package core
 
+import (
+	"time"
+)
+
 //VisitInfo encapsulates the information of each visit
 type VisitInfo struct {
-	Year     int
-	Month    int
-	Day      int
-	Hour     int
-	Minute   int
+	Time     time.Time
 	Referrer string
 	Browser  string
 	Country  string

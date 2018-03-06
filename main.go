@@ -262,13 +262,8 @@ func getHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		go func(shortUrl string, referrer, browser, country, operationSystem string) {
-			currentTime := time.Now()
 			err := storage.Visit(shortUrl, core.VisitInfo{
-				Year:     currentTime.Year(),
-				Month:    int(currentTime.Month()),
-				Day:      currentTime.Day(),
-				Hour:     currentTime.Hour(),
-				Minute:   currentTime.Minute(),
+				Time:     time.Now(),
 				Referrer: referrer,
 				Browser:  browser,
 				Country:  country,
