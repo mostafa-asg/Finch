@@ -12,6 +12,7 @@ import (
 	"github.com/mostafa-asg/finch/generator/base62"
 	"github.com/mostafa-asg/finch/http/model"
 	"github.com/mostafa-asg/finch/test/cache"
+	"github.com/mostafa-asg/finch/test/uagent"
 )
 
 type user struct {
@@ -49,8 +50,13 @@ func (u *user) makeGetRequests() {
 			select {
 			case <-ticker.C:
 				tinyURL, originalURL := cache.GetInstance().ReadRandom()
-				res, err := http.Get(fmt.Sprintf("%s/get/%s", u.nextServer(), tinyURL))
 
+				request, err := http.NewRequest("GET", fmt.Sprintf("%s/get/%s", u.nextServer(), tinyURL), nil)
+				if err != nil {
+					log.Fatal(err.Error())
+				}
+				request.Header.Set("User-Agent", uagent.GetRandomAgent())
+				res, err := http.DefaultClient.Do(request)
 				if err != nil {
 					log.Fatal(err.Error())
 				}
