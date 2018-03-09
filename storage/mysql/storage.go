@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 
@@ -90,6 +91,115 @@ func (st *storage) Count(shortUrl string) int {
 	}
 
 	return count
+}
+
+func (st *storage) GetStats(shortUrl string, queryType string) (core.Stats, error) {
+	switch queryType {
+	case "all":
+		return st.getAllTimeStats(shortUrl)
+	case "month":
+		return st.getLastMonthStats(shortUrl)
+	case "week":
+		return st.getLastWeekStats(shortUrl)
+	case "day":
+		return st.getTodayStats(shortUrl)
+	default:
+		return core.Stats{}, errors.New("Invalid query type")
+	}
+}
+
+func (st *storage) getAllTimeStats(shortUrl string) (core.Stats, error) {
+
+	timelines, err := st.execute(
+		fmt.Sprintf("SELECT YEAR(ts) as year ,"+
+			"count(*) as clicks FROM "+
+			"(SELECT * from visit where shortUrl='%s') AS t1 GROUP BY year;", shortUrl))
+	if err != nil {
+		return core.Stats{}, nil
+	}
+
+	referrals, err := st.execute(
+		fmt.Sprintf("SELECT referrer ,"+
+			"count(*) as clicks FROM "+
+			"(SELECT * from visit where shortUrl='%s') AS t1 GROUP BY referrer;", shortUrl))
+	if err != nil {
+		return core.Stats{}, nil
+	}
+
+	browsers, err := st.execute(
+		fmt.Sprintf("SELECT browser ,"+
+			"count(*) as clicks FROM "+
+			"(SELECT * from visit where shortUrl='%s') AS t1 GROUP BY browser;", shortUrl))
+	if err != nil {
+		return core.Stats{}, nil
+	}
+
+	countries, err := st.execute(
+		fmt.Sprintf("SELECT country ,"+
+			"count(*) as clicks FROM "+
+			"(SELECT * from visit where shortUrl='%s') AS t1 GROUP BY country;", shortUrl))
+	if err != nil {
+		return core.Stats{}, nil
+	}
+
+	opertingSystems, _ := st.execute(
+		fmt.Sprintf("SELECT os ,"+
+			"count(*) as clicks FROM "+
+			"(SELECT * from visit where shortUrl='%s') AS t1 GROUP BY os;", shortUrl))
+	if err != nil {
+		return core.Stats{}, nil
+	}
+
+	return core.Stats{
+		Timeline:  timelines,
+		Referrals: referrals,
+		Browsers:  browsers,
+		Countries: countries,
+		OS:        opertingSystems,
+	}, nil
+}
+
+func (st *storage) getLastMonthStats(shortUrl string) (core.Stats, error) {
+	//TODO implement this method
+	return core.Stats{}, nil
+}
+
+func (st *storage) getLastWeekStats(shortUrl string) (core.Stats, error) {
+	//TODO implement this method
+	return core.Stats{}, nil
+}
+
+func (st *storage) getTodayStats(shortUrl string) (core.Stats, error) {
+	//TODO implement this method
+	return core.Stats{}, nil
+}
+
+func (st *storage) execute(query string) (map[string]int, error) {
+	result := make(map[string]int)
+
+	db, err := sql.Open("mysql", st.connectionStr)
+	if err != nil {
+		return map[string]int{}, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return map[string]int{}, err
+	}
+
+	var key string
+	var count int
+
+	for rows.Next() {
+		err = rows.Scan(&key, &count)
+		if err != nil {
+			return result, err
+		}
+		result[key] = count
+	}
+
+	return result, nil
 }
 
 func ensureDatabaseExists() (string, error) {

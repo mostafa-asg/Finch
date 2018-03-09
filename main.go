@@ -66,6 +66,7 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/get/{id}", getHandler()).Methods("GET")
 	router.HandleFunc("/count/{id}", countHandler()).Methods("GET")
+	router.HandleFunc("/stats/{id}/{type}", statsHandler()).Methods("GET")
 	router.HandleFunc("/hash", hashHandler()).Methods("POST")
 	router.Handle("/metrics", prometheus.Handler())
 
@@ -340,5 +341,17 @@ func countHandler() func(http.ResponseWriter, *http.Request) {
 		json.NewEncoder(w).Encode(model.CountResponse{
 			Count: count,
 		})
+	}
+}
+
+func statsHandler() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		id := params["id"]
+		queryType := params["type"]
+
+		stats, err := storage.GetStats(id, queryType)
+		log.Println(err.Error())
+		json.NewEncoder(w).Encode(stats)
 	}
 }

@@ -113,3 +113,8 @@ func (st *storage) Count(shortUrl string) int {
 	//not implemented yet
 	return 0
 }
+
+func (st *storage) GetStats(shortUrl string, queryType string) (core.Stats, error) {
+	//not implemented yet
+	return core.Stats{}, nil
+}

@@ -92,6 +92,11 @@ func (st *storage) Count(shortUrl string) int {
 	return count
 }
 
+func (st *storage) GetStats(shortUrl string, queryType string) (core.Stats, error) {
+	//not implemented yet
+	return core.Stats{}, nil
+}
+
 func ensureDatabaseExists() error {
 
 	db, err := sql.Open("sqlite3", config.GetString("sqlite.path"))
