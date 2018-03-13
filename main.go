@@ -351,7 +351,18 @@ func statsHandler() func(http.ResponseWriter, *http.Request) {
 		queryType := params["type"]
 
 		stats, err := storage.GetStats(id, queryType)
-		log.Println(err.Error())
-		json.NewEncoder(w).Encode(stats)
+
+		var response model.StatsResponse
+		if err != nil {
+			log.Println(err)
+			response.ErrorMessage = "Something went wrong"
+		} else {
+			response.Browsers = stats.Browsers
+			response.Countries = stats.Countries
+			response.OS = stats.OS
+			response.Referrals = stats.Referrals
+			response.Timeline = stats.Timeline
+		}
+		json.NewEncoder(w).Encode(response)
 	}
 }

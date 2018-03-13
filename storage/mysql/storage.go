@@ -108,44 +108,46 @@ func (st *storage) GetStats(shortUrl string, queryType string) (core.Stats, erro
 	}
 }
 
-func (st *storage) getAllTimeStats(shortUrl string) (core.Stats, error) {
+func getQuery(groupBy, shortUrl, endTime string) string {
 
-	timelines, err := st.execute(
-		fmt.Sprintf("SELECT YEAR(ts) as year ,"+
-			"count(*) as clicks FROM "+
-			"(SELECT * from visit where shortUrl='%s') AS t1 GROUP BY year;", shortUrl))
+	var timeClouse string
+
+	if endTime == "all" {
+		timeClouse = ""
+	} else {
+		timeClouse = fmt.Sprintf("AND ts>=DATE_SUB(now() , INTERVAL %s DAY)", endTime)
+	}
+
+	r := fmt.Sprintf("SELECT %s , count(*) as clicks FROM ("+
+		"SELECT * from visit where shortUrl='%s' AND ts<=now() %s)"+
+		" AS t1 GROUP BY %s;", groupBy, shortUrl, timeClouse, groupBy)
+	println(r)
+	return r
+}
+
+func (st *storage) executeQuery(shortUrl, endTime string) (core.Stats, error) {
+	timelines, err := st.execute(getQuery("YEAR(ts)", shortUrl, endTime))
+
 	if err != nil {
 		return core.Stats{}, nil
 	}
 
-	referrals, err := st.execute(
-		fmt.Sprintf("SELECT referrer ,"+
-			"count(*) as clicks FROM "+
-			"(SELECT * from visit where shortUrl='%s') AS t1 GROUP BY referrer;", shortUrl))
+	referrals, err := st.execute(getQuery("referrer", shortUrl, endTime))
 	if err != nil {
 		return core.Stats{}, nil
 	}
 
-	browsers, err := st.execute(
-		fmt.Sprintf("SELECT browser ,"+
-			"count(*) as clicks FROM "+
-			"(SELECT * from visit where shortUrl='%s') AS t1 GROUP BY browser;", shortUrl))
+	browsers, err := st.execute(getQuery("browser", shortUrl, endTime))
 	if err != nil {
 		return core.Stats{}, nil
 	}
 
-	countries, err := st.execute(
-		fmt.Sprintf("SELECT country ,"+
-			"count(*) as clicks FROM "+
-			"(SELECT * from visit where shortUrl='%s') AS t1 GROUP BY country;", shortUrl))
+	countries, err := st.execute(getQuery("country", shortUrl, endTime))
 	if err != nil {
 		return core.Stats{}, nil
 	}
 
-	opertingSystems, _ := st.execute(
-		fmt.Sprintf("SELECT os ,"+
-			"count(*) as clicks FROM "+
-			"(SELECT * from visit where shortUrl='%s') AS t1 GROUP BY os;", shortUrl))
+	opertingSystems, _ := st.execute(getQuery("os", shortUrl, endTime))
 	if err != nil {
 		return core.Stats{}, nil
 	}
@@ -159,19 +161,20 @@ func (st *storage) getAllTimeStats(shortUrl string) (core.Stats, error) {
 	}, nil
 }
 
+func (st *storage) getAllTimeStats(shortUrl string) (core.Stats, error) {
+	return st.executeQuery(shortUrl, "all")
+}
+
 func (st *storage) getLastMonthStats(shortUrl string) (core.Stats, error) {
-	//TODO implement this method
-	return core.Stats{}, nil
+	return st.executeQuery(shortUrl, "30")
 }
 
 func (st *storage) getLastWeekStats(shortUrl string) (core.Stats, error) {
-	//TODO implement this method
-	return core.Stats{}, nil
+	return st.executeQuery(shortUrl, "7")
 }
 
 func (st *storage) getTodayStats(shortUrl string) (core.Stats, error) {
-	//TODO implement this method
-	return core.Stats{}, nil
+	return st.executeQuery(shortUrl, "1")
 }
 
 func (st *storage) execute(query string) (map[string]int, error) {
